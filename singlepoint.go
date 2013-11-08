@@ -6,6 +6,12 @@ import (
 	"github.com/go-gl/gl"
 	glfw "github.com/go-gl/glfw3"
 	"log"
+	"runtime"
+)
+
+var (
+	program gl.Program
+	vao     gl.VertexArray
 )
 
 func errorCallback(err glfw.ErrorCode, desc string) {
@@ -13,18 +19,18 @@ func errorCallback(err glfw.ErrorCode, desc string) {
 }
 
 func compileShaders() gl.Program {
-	vss := `#version 130 core
+	vss := `#version 420 core
 			
 			void main(void)
 			{
 				gl_Position = vec4(0.0, 0.0, 0.5, 1.0);
 			}`
-	fss := `#version 130 core
+	fss := `#version 420 core
 			out vec4 color;
 			
 			void main(void)
 			{
-				color = vec4(0.0, 0.8, 1.0, 1.0)
+				color = vec4(0.0, 0.8, 1.0, 1.0);
 			}`
 
 	vs := gl.CreateShader(gl.VERTEX_SHADER)
@@ -47,25 +53,33 @@ func compileShaders() gl.Program {
 }
 
 func startup() {
+	log.Println(gl.GetString(gl.VERSION))
 
+	program = compileShaders()
+	vao = gl.GenVertexArray()
+	vao.Bind()
 }
 
 func render() {
-	program := compileShaders()
-	defer program.Delete()
-
-	vao := gl.GenVertexArray()
-	vao.Bind()
-	defer vao.Delete()
 
 	gl.ClearColor(1, 0, 0, 1)
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 
 	program.Use()
+
+	gl.PointSize(40)
+
 	gl.DrawArrays(gl.POINTS, 0, 1)
 }
 
+func shutdown() {
+	vao.Delete()
+	program.Delete()
+}
+
 func main() {
+	runtime.LockOSThread()
+
 	glfw.SetErrorCallback(errorCallback)
 
 	if !glfw.Init() {
@@ -82,6 +96,8 @@ func main() {
 
 	window.MakeContextCurrent()
 
+	startup()
+
 	for !window.ShouldClose() {
 		//Do OpenGL stuff
 		render()
@@ -89,4 +105,6 @@ func main() {
 		window.SwapBuffers()
 		glfw.PollEvents()
 	}
+
+	shutdown()
 }
