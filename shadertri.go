@@ -1,4 +1,4 @@
-// shader
+// singlepoint2
 package main
 
 import (
@@ -6,15 +6,19 @@ import (
 	"github.com/go-gl/gl"
 	glfw "github.com/go-gl/glfw3"
 	"log"
+	"runtime"
+	"unsafe"
 )
 
 var (
 	program gl.Program
 	vao     gl.VertexArray
+	buffer  gl.Buffer
 )
 
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	runtime.LockOSThread()
 }
 
 func errorCallback(err glfw.ErrorCode, desc string) {
@@ -23,12 +27,13 @@ func errorCallback(err glfw.ErrorCode, desc string) {
 
 func compileShaders() gl.Program {
 	vss := `#version 130
-	
+			
+			in vec4 position;
+			
 			void main(void)
 			{
-				gl_Position = vec4(0.0, 0.0, 0.5, 1.0);
+				gl_Position = position;
 			}`
-
 	fss := `#version 130
 	
 			out vec4 color;
@@ -38,21 +43,21 @@ func compileShaders() gl.Program {
 				color = vec4(0.0, 0.8, 1.0, 1.0);
 			}`
 
-	vs := gl.CreateShader(gl.VERTEX_SHADER)
-	vs.Source(vss)
-	vs.Compile()
-	defer vs.Delete()
-	log.Println("vertex shader info log:", vs.GetInfoLog())
+	vertex := gl.CreateShader(gl.VERTEX_SHADER)
+	vertex.Source(vss)
+	vertex.Compile()
+	defer vertex.Delete()
+	log.Println("vertex shader info log:", vertex.GetInfoLog())
 
-	fs := gl.CreateShader(gl.FRAGMENT_SHADER)
-	fs.Source(fss)
-	fs.Compile()
-	defer fs.Delete()
-	log.Println("frag shader info log:", vs.GetInfoLog())
+	frag := gl.CreateShader(gl.FRAGMENT_SHADER)
+	frag.Source(fss)
+	frag.Compile()
+	defer frag.Delete()
+	log.Println("frag shader info log:", frag.GetInfoLog())
 
 	program := gl.CreateProgram()
-	program.AttachShader(vs)
-	program.AttachShader(fs)
+	program.AttachShader(vertex)
+	program.AttachShader(frag)
 	program.Link()
 
 	program.Use()
@@ -61,26 +66,55 @@ func compileShaders() gl.Program {
 	log.Println("validate status:", program.Get(gl.VALIDATE_STATUS))
 	log.Println("program info log:", program.GetInfoLog())
 
+	loc := program.GetAttribLocation("position")
+	log.Println(loc)
+
 	return program
 }
 
+func ptr2Slice(ptr unsafe.Pointer, size int) []float32 {
+	return ((*[1 << 30]float32)(ptr))[0:size]
+}
+
 func startup() {
-	log.Println(gl.GetString(gl.VERSION))
+	data := []float32{
+		0.25, -0.25, 0.5, 1.0,
+		-0.25, -0.25, 0.5, 1.0,
+		0.25, 0.25, 0.5, 1.0,
+	}
+	size := len(data)
 	program = compileShaders()
+
 	vao = gl.GenVertexArray()
 	vao.Bind()
+
+	buffer = gl.GenBuffer()
+	buffer.Bind(gl.ARRAY_BUFFER)
+	gl.BufferData(gl.ARRAY_BUFFER, size*4, nil, gl.STATIC_DRAW)
+
+	ptr := gl.MapBuffer(gl.ARRAY_BUFFER, gl.WRITE_ONLY)
+
+	n := copy(ptr2Slice(ptr, size), data)
+	log.Println("copy data", n)
+	gl.UnmapBuffer(gl.ARRAY_BUFFER)
+
 }
 
 func render() {
 	gl.ClearColor(1, 0, 0, 1)
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 
-	gl.PointSize(40)
+	buffer.Bind(gl.ARRAY_BUFFER)
+	loc := program.GetAttribLocation("position")
+	loc.AttribPointer(4, gl.FLOAT, false, 0, nil)
+	loc.EnableArray()
 
-	gl.DrawArrays(gl.POINTS, 0, 1)
+	gl.DrawArrays(gl.TRIANGLES, 0, 3)
+	loc.DisableArray()
 }
 
 func shutdown() {
+	buffer.Delete()
 	vao.Delete()
 	program.Delete()
 }
@@ -102,10 +136,10 @@ func main() {
 
 	window.MakeContextCurrent()
 
-	r := gl.Init()
-	log.Println("init opengl:", r)
+	gl.Init()
 
 	startup()
+	defer shutdown()
 
 	for !window.ShouldClose() {
 		//Do OpenGL stuff
@@ -114,6 +148,4 @@ func main() {
 		window.SwapBuffers()
 		glfw.PollEvents()
 	}
-
-	shutdown()
 }
