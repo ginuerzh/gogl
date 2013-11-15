@@ -24,18 +24,26 @@ func errorCallback(err glfw.ErrorCode, desc string) {
 func compileShaders() gl.Program {
 	vss := `#version 130
 	
+			in vec4 position;
+			in vec4 color;
+			
+			out vec4 vs_color;
+	
 			void main(void)
 			{
-				gl_Position = vec4(0.0, 0.0, 0.5, 1.0);
+				gl_Position = position;
+				vs_color = color;
 			}`
 
 	fss := `#version 130
 	
+			in vec4 vs_color;
+			
 			out vec4 color;
 			
 			void main(void)
 			{
-				color = vec4(0.0, 0.8, 1.0, 1.0);
+				color = vs_color;
 			}`
 
 	vs := gl.CreateShader(gl.VERTEX_SHADER)
@@ -69,9 +77,20 @@ func startup() {
 	program = compileShaders()
 	vao = gl.GenVertexArray()
 	vao.Bind()
+
+	vpos := [4]float32{-0.5, 0.5, 0.5, 1.0}
+	vcolor := [4]float32{0.5, 0.8, 1.0, 1.0}
+
+	pos := program.GetAttribLocation("position")
+	color := program.GetAttribLocation("color")
+	log.Println(pos, color)
+
+	pos.Attrib4fv(&vpos)
+	color.Attrib4fv(&vcolor)
 }
 
 func render() {
+
 	gl.ClearColor(1, 0, 0, 1)
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 

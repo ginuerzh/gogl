@@ -28,6 +28,7 @@ func errorCallback(err glfw.ErrorCode, desc string) {
 func compileShaders() gl.Program {
 	vss := `#version 130
 			
+			uniform float offset = 0.5;
 			in vec4 position;
 			
 			void main(void)
@@ -67,7 +68,17 @@ func compileShaders() gl.Program {
 	log.Println("program info log:", program.GetInfoLog())
 
 	loc := program.GetAttribLocation("position")
-	log.Println(loc)
+	log.Println("position:", loc)
+
+	uniform := program.GetUniformLocation("offset")
+	log.Println("offset:", uniform)
+
+	var v []float32 = make([]float32, 1)
+	program.GetUniformfv(uniform, v)
+	log.Println(v)
+	uniform.Uniform1f(1.5)
+	program.GetUniformfv(uniform, v)
+	log.Println(v)
 
 	return program
 }
