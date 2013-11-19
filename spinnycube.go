@@ -3,19 +3,24 @@ package main
 
 import (
 	"fmt"
+	"github.com/ginuerzh/math3d"
 	"github.com/go-gl/gl"
 	glfw "github.com/go-gl/glfw3"
 	"log"
+	"math"
 	"runtime"
+	"unsafe"
 )
 
 var (
-	program gl.Program
-	vao     gl.VertexArray
-	vbuffer gl.Buffer
-	ubuffer gl.Buffer
-	mv_loc gl.UniformLocation
+	program  gl.Program
+	vao      gl.VertexArray
+	vbuffer  gl.Buffer
+	ubuffer  gl.Buffer
+	mv_loc   gl.UniformLocation
 	proj_loc gl.UniformLocation
+
+	proj_matrix *math3d.Matrix4
 )
 
 func init() {
@@ -25,6 +30,14 @@ func init() {
 
 func errorCallback(err glfw.ErrorCode, desc string) {
 	fmt.Printf("%v: %v\n", err, desc)
+}
+
+func resizeCallback(w *glfw.Window, width int, height int) {
+	aspect := float64(width) / float64(height)
+	log.Println("resizeCallback")
+	w.SetSize(width, height)
+
+	proj_matrix = math3d.Perspective(50, aspect, 0.1, 1000)
 }
 
 func compileShaders() gl.Program {
@@ -43,13 +56,13 @@ func compileShaders() gl.Program {
 			void main(void)
 			{
 				gl_Position = proj_matrix * mv_matrix * position;
-				vs_out.clolr = position * 2.0 + vec4(0.5, 0.5, 0.5, 0.0);
+				vs_out.color = position * 2.0 + vec4(0.5, 0.5, 0.5, 0.0);
 			}`
 	fss := `#version 430
 	
 			out vec4 color;
 			
-			out VS_OUT
+			in VS_OUT
 			{
 				vec4 color;
 			} fs_in;
@@ -102,53 +115,53 @@ func ptr2Slice(ptr unsafe.Pointer, size int) []float32 {
 
 func startup() {
 	vertex_positions := []float32{
-			-0.25f,  0.25f, -0.25f,
-            -0.25f, -0.25f, -0.25f,
-             0.25f, -0.25f, -0.25f,
+		-0.25, 0.25, -0.25,
+		-0.25, -0.25, -0.25,
+		0.25, -0.25, -0.25,
 
-             0.25f, -0.25f, -0.25f,
-             0.25f,  0.25f, -0.25f,
-            -0.25f,  0.25f, -0.25f,
+		0.25, -0.25, -0.25,
+		0.25, 0.25, -0.25,
+		-0.25, 0.25, -0.25,
 
-             0.25f, -0.25f, -0.25f,
-             0.25f, -0.25f,  0.25f,
-             0.25f,  0.25f, -0.25f,
+		0.25, -0.25, -0.25,
+		0.25, -0.25, 0.25,
+		0.25, 0.25, -0.25,
 
-             0.25f, -0.25f,  0.25f,
-             0.25f,  0.25f,  0.25f,
-             0.25f,  0.25f, -0.25f,
+		0.25, -0.25, 0.25,
+		0.25, 0.25, 0.25,
+		0.25, 0.25, -0.25,
 
-             0.25f, -0.25f,  0.25f,
-            -0.25f, -0.25f,  0.25f,
-             0.25f,  0.25f,  0.25f,
+		0.25, -0.25, 0.25,
+		-0.25, -0.25, 0.25,
+		0.25, 0.25, 0.25,
 
-            -0.25f, -0.25f,  0.25f,
-            -0.25f,  0.25f,  0.25f,
-             0.25f,  0.25f,  0.25f,
+		-0.25, -0.25, 0.25,
+		-0.25, 0.25, 0.25,
+		0.25, 0.25, 0.25,
 
-            -0.25f, -0.25f,  0.25f,
-            -0.25f, -0.25f, -0.25f,
-            -0.25f,  0.25f,  0.25f,
+		-0.25, -0.25, 0.25,
+		-0.25, -0.25, -0.25,
+		-0.25, 0.25, 0.25,
 
-            -0.25f, -0.25f, -0.25f,
-            -0.25f,  0.25f, -0.25f,
-            -0.25f,  0.25f,  0.25f,
+		-0.25, -0.25, -0.25,
+		-0.25, 0.25, -0.25,
+		-0.25, 0.25, 0.25,
 
-            -0.25f, -0.25f,  0.25f,
-             0.25f, -0.25f,  0.25f,
-             0.25f, -0.25f, -0.25f,
+		-0.25, -0.25, 0.25,
+		0.25, -0.25, 0.25,
+		0.25, -0.25, -0.25,
 
-             0.25f, -0.25f, -0.25f,
-            -0.25f, -0.25f, -0.25f,
-            -0.25f, -0.25f,  0.25f,
+		0.25, -0.25, -0.25,
+		-0.25, -0.25, -0.25,
+		-0.25, -0.25, 0.25,
 
-            -0.25f,  0.25f, -0.25f,
-             0.25f,  0.25f, -0.25f,
-             0.25f,  0.25f,  0.25f,
+		-0.25, 0.25, -0.25,
+		0.25, 0.25, -0.25,
+		0.25, 0.25, 0.25,
 
-             0.25f,  0.25f,  0.25f,
-            -0.25f,  0.25f,  0.25f,
-            -0.25f,  0.25f, -0.25f,
+		0.25, 0.25, 0.25,
+		-0.25, 0.25, 0.25,
+		-0.25, 0.25, -0.25,
 	}
 	size := len(vertex_positions)
 	program = compileShaders()
@@ -165,28 +178,40 @@ func startup() {
 	var vloc gl.AttribLocation = 0
 	vloc.AttribPointer(3, gl.FLOAT, false, 0, nil)
 	vloc.EnableArray()
-	
+
 	gl.Enable(gl.CULL_FACE)
 	gl.FrontFace(gl.LEQUAL)
-	
+
 	gl.Enable(gl.DEPTH_TEST)
 	gl.DepthFunc(gl.LEQUAL)
 }
 
-func render() {
-	green := []gl.GLclampf{0, 0.25, 0.0, 1.0}
-	one := 1.0
-	
-	gl.ClearColor(green...)
-	gl.Clear(gl.COLOR_BUFFER_BIT)
-	
-	gl.ClearDepth(one)
-	gl.Clear(gl.DEPTH_BUFFER_BIT)
-	
-	//proj_loc.UniformMatrix4f(false, )
+func render(currentTime float64) {
 
-	
-	gl.DrawArrays(gl.TRIANGLES, 0, 36)
+	gl.ClearColor(0.0, 0.25, 0.0, 1.0)
+	gl.Clear(gl.COLOR_BUFFER_BIT)
+
+	gl.ClearDepth(1.0)
+	gl.Clear(gl.DEPTH_BUFFER_BIT)
+	a := proj_matrix.ToArray32()
+	proj_loc.UniformMatrix4f(false, &a)
+
+	for i := 0; i < 24; i++ {
+		f := float64(i) + currentTime*0.3
+
+		mv_matrix := math3d.Translate(0, 0, -6)
+		mv_matrix = mv_matrix.MultiM(math3d.Rotate(currentTime*45.0, 0, 1, 0))
+		mv_matrix = mv_matrix.MultiM(math3d.Rotate(currentTime*21.0, 1.0, 0, 0))
+		mv_matrix = mv_matrix.MultiM(math3d.Translate(
+			math.Sin(2.1*f)*2.0,
+			math.Cos(1.7*f)*2.0,
+			math.Sin(1.3*f)*math.Cos(1.5*f)*2.0))
+
+		a := mv_matrix.ToArray32()
+		mv_loc.UniformMatrix4f(false, &a)
+
+		gl.DrawArrays(gl.TRIANGLES, 0, 36)
+	}
 }
 
 func shutdown() {
@@ -203,13 +228,16 @@ func main() {
 	}
 	defer glfw.Terminate()
 
-	glfw.WindowHint(glfw.Resizable, glfw.False)
+	//glfw.WindowHint(glfw.Resizable, glfw.False)
 	window, err := glfw.CreateWindow(640, 480, "Testing", nil, nil)
 	if err != nil {
 		panic(err)
 	}
 	defer window.Destroy()
 
+	proj_matrix = math3d.Perspective(50, 640.0/480.0, 0.1, 1000)
+
+	window.SetSizeCallback(resizeCallback)
 	window.MakeContextCurrent()
 
 	gl.Init()
@@ -219,7 +247,7 @@ func main() {
 
 	for !window.ShouldClose() {
 		//Do OpenGL stuff
-		render()
+		render(glfw.GetTime())
 
 		window.SwapBuffers()
 		glfw.PollEvents()
