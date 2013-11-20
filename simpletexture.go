@@ -68,7 +68,7 @@ func compileShaders() gl.Uint {
 			
 			void main(void)
 			{
-				color = textureFetch(s, ivec2(gl_FragCoord.xy), 0);
+				color = texture(s, gl_FragCoord.xy / textureSize(s, 0));
 			}`
 
 	vs := gl.CreateShader(gl.VERTEX_SHADER)
@@ -119,9 +119,7 @@ func genTexture(width, height int) []float32 {
 }
 
 func startup() {
-	var ver *gl.Ubyte = gl.GetString(gl.VERSION)
-
-	log.Println(gl.GoStringUb(ver))
+	log.Println(gl.GoStringUb(gl.GetString(gl.VERSION)))
 
 	gl.GenTextures(1, &texture)
 	gl.BindTexture(gl.TEXTURE_2D, texture)
