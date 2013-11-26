@@ -25,6 +25,11 @@ func errorCallback(err glfw.ErrorCode, desc string) {
 
 func getShaderInfoLog(s gl.Uint) string {
 	var length gl.Int
+	var status gl.Int
+
+	gl.GetShaderiv(s, gl.COMPILE_STATUS, &status)
+	log.Println("shader compile status:", status)
+
 	gl.GetShaderiv(s, gl.INFO_LOG_LENGTH, &length)
 	if length > 0 {
 		info := gl.GLStringAlloc(gl.Sizei(length))
@@ -38,6 +43,16 @@ func getShaderInfoLog(s gl.Uint) string {
 
 func getProgramInfoLog(program gl.Uint) string {
 	var length gl.Int
+	var status gl.Int
+
+	// GL_DELETE_STATUS, GL_LINK_STATUS, GL_INFO_LOG_LENGTH, GL_ATTACHED_SHADERS
+	// GL_ACTIVE_ATTRIBUTES, GL_ACTIVE_UNIFORMS, GL_ACTIVE_UNIFORM_BLOCKS
+	gl.GetProgramiv(program, gl.LINK_STATUS, &status)
+	log.Println("program link status:", status)
+
+	gl.GetProgramiv(program, gl.ACTIVE_UNIFORMS, &status)
+	log.Println("active uniforms:", status)
+
 	gl.GetProgramiv(program, gl.INFO_LOG_LENGTH, &length)
 	if length > 0 {
 		info := gl.GLStringAlloc(gl.Sizei(length))
@@ -51,23 +66,23 @@ func getProgramInfoLog(program gl.Uint) string {
 
 func compileShaders() gl.Uint {
 	vss := `#version 430 core
-	
+
 			void main(void)
 			{
 				const vec4 vertices[] = vec4[](
 					vec4(0.75, -0.75, 0.5, 1.0),
 					vec4(-0.75, -0.75, 0.5, 1.0),
 					vec4( 0.75,  0.75, 0.5, 1.0));
-				
+
 				gl_Position = vertices[gl_VertexID];
 			}`
 
 	fss := `#version 430 core
-	
+
 			uniform sampler2D s;
-			
+
 			out vec4 color;
-			
+
 			void main(void)
 			{
 				color = texture(s, gl_FragCoord.xy / textureSize(s, 0));
@@ -153,7 +168,8 @@ func genTexture(width, height int) []float32 {
 }
 
 func startup() {
-	log.Println(gl.GoStringUb(gl.GetString(gl.VERSION)))
+	log.Println("OpenGL:", gl.GoStringUb(gl.GetString(gl.VERSION)))
+	log.Println("GLSL:", gl.GoStringUb(gl.GetString(gl.SHADING_LANGUAGE_VERSION)))
 
 	gl.ActiveTexture(gl.TEXTURE0 + 1)
 	gl.GenTextures(1, &texture)
