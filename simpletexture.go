@@ -7,6 +7,7 @@ import (
 	//gogl "github.com/go-gl/gl"
 	glfw "github.com/go-gl/glfw3"
 	"log"
+	"time"
 )
 
 var (
@@ -222,6 +223,14 @@ func main() {
 	log.Println("init opengl:", r)
 
 	//gogl.Init()
+	go func() {
+		for {
+			if e := gl.GetError(); e != gl.NO_ERROR {
+				log.Println("Error detected:", e)
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+	}()
 
 	startup()
 
