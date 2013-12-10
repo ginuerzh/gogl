@@ -42,31 +42,31 @@ func resizeCallback(w *glfw.Window, width int, height int) {
 
 func compileShaders() gl.Program {
 	vss := `#version 430
-			
+
 			layout(location=0) in vec4 position;
-			
+
 			out VS_OUT
 			{
 				vec4 color;
 			} vs_out;
-			
+
 			uniform mat4 mv_matrix;
 			uniform mat4 proj_matrix;
-			
+
 			void main(void)
 			{
 				gl_Position = proj_matrix * mv_matrix * position;
 				vs_out.color = position * 2.0 + vec4(0.5, 0.5, 0.5, 0.0);
 			}`
 	fss := `#version 430
-	
+
 			out vec4 color;
-			
+
 			in VS_OUT
 			{
 				vec4 color;
 			} fs_in;
-			
+
 			void main(void)
 			{
 				color = fs_in.color;

@@ -2,88 +2,45 @@
 package main
 
 import (
-	"fmt"
-	"github.com/go-gl/gl"
-	glfw "github.com/go-gl/glfw3"
+	gl "github.com/chsc/gogl/gl42"
+	"github.com/ginuerzh/gogl/utils"
 	"log"
-	"runtime"
-	"unsafe"
+)
+
+const (
+	width        = 640
+	height       = 480
+	title        = "OpenGL SuperBible - Shader Triangle"
+	majorVersion = 3
+	minorVersion = 0
+	debug        = true
 )
 
 var (
-	program gl.Program
-	vao     gl.VertexArray
-	buffer  gl.Buffer
-)
+	program gl.Uint
+	vao     gl.Uint
+	buffer  gl.Uint
+	vss     = `#version 130
 
-func init() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	runtime.LockOSThread()
-}
-
-func errorCallback(err glfw.ErrorCode, desc string) {
-	fmt.Printf("%v: %v\n", err, desc)
-}
-
-func compileShaders() gl.Program {
-	vss := `#version 130
-			
 			uniform float offset = 0.5;
 			in vec4 position;
-			
+
 			void main(void)
 			{
 				gl_Position = position;
 			}`
-	fss := `#version 130
-	
+
+	fss = `#version 130
+
 			out vec4 color;
-			
+
 			void main(void)
 			{
 				color = vec4(0.0, 0.8, 1.0, 1.0);
 			}`
+)
 
-	vertex := gl.CreateShader(gl.VERTEX_SHADER)
-	vertex.Source(vss)
-	vertex.Compile()
-	defer vertex.Delete()
-	log.Println("vertex shader info log:", vertex.GetInfoLog())
-
-	frag := gl.CreateShader(gl.FRAGMENT_SHADER)
-	frag.Source(fss)
-	frag.Compile()
-	defer frag.Delete()
-	log.Println("frag shader info log:", frag.GetInfoLog())
-
-	program := gl.CreateProgram()
-	program.AttachShader(vertex)
-	program.AttachShader(frag)
-	program.Link()
-
-	program.Use()
-
-	program.Validate()
-	log.Println("validate status:", program.Get(gl.VALIDATE_STATUS))
-	log.Println("program info log:", program.GetInfoLog())
-
-	loc := program.GetAttribLocation("position")
-	log.Println("position:", loc)
-
-	uniform := program.GetUniformLocation("offset")
-	log.Println("offset:", uniform)
-
-	var v []float32 = make([]float32, 1)
-	program.GetUniformfv(uniform, v)
-	log.Println(v)
-	uniform.Uniform1f(1.5)
-	program.GetUniformfv(uniform, v)
-	log.Println(v)
-
-	return program
-}
-
-func ptr2Slice(ptr unsafe.Pointer, size int) []float32 {
+func ptr2Slice(ptr gl.Pointer, size int) []float32 {
 	return ((*[1 << 30]float32)(ptr))[0:size]
 }
 
@@ -94,69 +51,53 @@ func startup() {
 		0.25, 0.25, 0.5, 1.0,
 	}
 	size := len(data)
-	program = compileShaders()
+	program = utils.CompileShaders(utils.ShaderString, vss, fss)
 
-	vao = gl.GenVertexArray()
-	vao.Bind()
+	gl.GenVertexArrays(1, &vao)
+	gl.BindVertexArray(vao)
 
-	buffer = gl.GenBuffer()
-	buffer.Bind(gl.ARRAY_BUFFER)
-	gl.BufferData(gl.ARRAY_BUFFER, size*4, nil, gl.STATIC_DRAW)
+	gl.GenBuffers(1, &buffer)
+	gl.BindBuffer(gl.ARRAY_BUFFER, buffer)
+	gl.BufferData(gl.ARRAY_BUFFER, gl.Sizeiptr(size*4), nil, gl.STATIC_DRAW)
 
 	ptr := gl.MapBuffer(gl.ARRAY_BUFFER, gl.WRITE_ONLY)
 
 	n := copy(ptr2Slice(ptr, size), data)
 	log.Println("copy data", n)
 	gl.UnmapBuffer(gl.ARRAY_BUFFER)
-
 }
 
-func render() {
-	gl.ClearColor(1, 0, 0, 1)
-	gl.Clear(gl.COLOR_BUFFER_BIT)
+func render(currentTime float64) {
+	if majorVersion > 3 || majorVersion == 3 && minorVersion >= 2 { // OpenGL version >= 3.2
+		bgc := []gl.Float{0.0, 0.25, 0.0, 1.0}
+		gl.ClearBufferfv(gl.COLOR, 0, &bgc[0])
+	} else {
+		gl.ClearColor(0, 0.25, 0, 1)
+		gl.Clear(gl.COLOR_BUFFER_BIT)
+	}
 
-	buffer.Bind(gl.ARRAY_BUFFER)
-	loc := program.GetAttribLocation("position")
-	loc.AttribPointer(4, gl.FLOAT, false, 0, nil)
-	loc.EnableArray()
+	gl.GenBuffers(1, &buffer)
+	loc := gl.GetAttribLocation(program, gl.GLString("position"))
+
+	gl.VertexAttribPointer(gl.Uint(loc), 4, gl.FLOAT, gl.GLBool(false), 0, nil)
+	gl.EnableVertexAttribArray(gl.Uint(loc))
 
 	gl.DrawArrays(gl.TRIANGLES, 0, 3)
-	loc.DisableArray()
+	gl.DisableVertexAttribArray(gl.Uint(loc))
 }
 
 func shutdown() {
-	buffer.Delete()
-	vao.Delete()
-	program.Delete()
+	gl.DeleteProgram(program)
+	gl.DeleteVertexArrays(1, &vao)
+	gl.DeleteBuffers(1, &buffer)
 }
 
 func main() {
-	glfw.SetErrorCallback(errorCallback)
-
-	if !glfw.Init() {
-		panic("Can't init glfw!")
-	}
-	defer glfw.Terminate()
-
-	glfw.WindowHint(glfw.Resizable, glfw.False)
-	window, err := glfw.CreateWindow(640, 480, "Testing", nil, nil)
-	if err != nil {
-		panic(err)
-	}
-	defer window.Destroy()
-
-	window.MakeContextCurrent()
-
-	gl.Init()
+	utils.GlfwInit(width, height, title, majorVersion, minorVersion, debug)
+	defer utils.GlfwDestroy()
 
 	startup()
 	defer shutdown()
 
-	for !window.ShouldClose() {
-		//Do OpenGL stuff
-		render()
-
-		window.SwapBuffers()
-		glfw.PollEvents()
-	}
+	utils.GlfwMainLoop(render)
 }

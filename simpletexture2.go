@@ -72,7 +72,7 @@ func compileShaders() gl.Program {
 	return program
 }
 
-func genTexture(width, height int) []float32 {
+func (width, height int) []float32 {
 	data := make([]float32, width*height*4)
 
 	for y := 0; y < height; y++ {
@@ -145,7 +145,11 @@ func main() {
 	defer glfw.Terminate()
 
 	glfw.WindowHint(glfw.Resizable, glfw.False)
+	glfw.WindowHint(glfw.ContextVersionMajor, 3)
+	glfw.WindowHint(glfw.ContextVersionMinor, 0)
+	glfw.WindowHint(glfw.OpenglProfile, glfw.OpenglCoreProfile)
 	window, err := glfw.CreateWindow(640, 480, "Testing", nil, nil)
+
 	if err != nil {
 		panic(err)
 	}
